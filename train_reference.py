@@ -1,3 +1,4 @@
+import torch
 from transformers import TrainingArguments, Trainer
 from data_loader import InstructionDataset, load_instruction_dataset
 from model import load_hf_model_and_tokenizer
@@ -16,9 +17,10 @@ def train_reference():
     training_args = TrainingArguments(
         output_dir="./outputs/reference_model",
         num_train_epochs=3,
-        per_device_train_batch_size=32,
-        per_device_eval_batch_size=32,
+        per_device_train_batch_size=8,
+        per_device_eval_batch_size=8,
         learning_rate=5e-5,
+        fp16=True,
         logging_dir="./logs",
         logging_steps=500,
         eval_strategy="steps",
@@ -36,6 +38,10 @@ def train_reference():
         train_dataset=train_dataset,
         eval_dataset=eval_dataset
     )
+
+    # Check device information
+    print(f"Trainer device: {trainer.args.device}")
+    print(f"Number of GPUs: {torch.cuda.device_count()}")
 
     trainer.train()
 
