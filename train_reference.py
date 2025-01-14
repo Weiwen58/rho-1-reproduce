@@ -10,11 +10,15 @@ def train_reference():
 
     model, tokenizer = load_hf_model_and_tokenizer(MODEL_NAME)
 
-    train_val_split = combined_dataset.train_test_split(test_size=0.1)
-    train_dataset = preprocess_instruction_dataset(train_val_split["train"], tokenizer)
-    eval_dataset = preprocess_instruction_dataset(train_val_split["test"], tokenizer)
-    print(train_dataset)
-    print(eval_dataset)
+    dataset = preprocess_instruction_dataset(
+        combined_dataset, 
+        tokenizer,
+        load=False,
+        save_path="./outputs/instruction_dataset"
+    )
+    train_val_split = dataset.train_test_split(test_size=0.1)
+    train_dataset = train_val_split["train"]
+    eval_dataset = train_val_split["test"]
 
     training_args = TrainingArguments(
         output_dir="./outputs/reference_model",

@@ -14,7 +14,20 @@ def load_instruction_dataset():
     combined_dataset = combined_dataset.shuffle(seed=42)
     return combined_dataset
 
-def preprocess_instruction_dataset(dataset, tokenizer, max_length=2048, num_proc=4):
+
+def preprocess_instruction_dataset(
+    dataset,
+    tokenizer,
+    load,
+    save_path,
+    max_length=2048,
+    num_proc=4
+):
+    if load and os.path.exists(save_path):
+        print(f"Loading tokenized dataset from {save_path}")
+        tokenized_dataset = load_from_disk(save_path)
+        return tokenized_dataset
+
     def preprocess_function(batch):
         # Format using standard tokens:
         # <s>Instruction: {instruction} Response: {response}</s>
@@ -30,7 +43,7 @@ def preprocess_instruction_dataset(dataset, tokenizer, max_length=2048, num_proc
             padding="max_length",
             return_tensors="pt"
         )
-        
+
         labels = encodings.input_ids.clone()
 
         # mask out the tokens before the response
@@ -48,7 +61,7 @@ def preprocess_instruction_dataset(dataset, tokenizer, max_length=2048, num_proc
         # Mask padding tokens in labels
         padding_mask = encodings.attention_mask == 0
         labels[padding_mask] = IGNORE_INDEX
-        
+
         return {
             "input_ids": encodings.input_ids,
             "attention_mask": encodings.attention_mask,
@@ -56,12 +69,13 @@ def preprocess_instruction_dataset(dataset, tokenizer, max_length=2048, num_proc
         }
 
     tokenized_dataset = dataset.map(
-        preprocess_function, 
-        batched=True, 
+        preprocess_function,
+        batched=True,
         num_proc=num_proc,
         remove_columns=dataset.column_names,
         desc="Preprocessing instruction dataset"
     )
+    tokenized_dataset.save_to_disk(save_path)
     return tokenized_dataset
 
 
@@ -80,7 +94,7 @@ def load_or_tokenize_owm_dataset(
         print("Tokenizing dataset...")
         dataset = load_dataset("open-web-math/open-web-math")
         dataset = dataset.remove_columns(["url", "date", "metadata"])
-        
+
         if num_rows is not None:
             selected_indices = list(range(0, num_rows))
             dataset = dataset['train'].select(selected_indices)
@@ -96,7 +110,8 @@ def load_or_tokenize_owm_dataset(
             tokenize_function,
             batched=True,
             num_proc=num_proc,
-            remove_columns=dataset.column_names
+            remove_columns=dataset.column_names,
+            desc="Tokenizing OWM dataset"
         )
 
         def create_labels(batch):
@@ -110,8 +125,13 @@ def load_or_tokenize_owm_dataset(
             batch["labels"] = labels.tolist()  # Convert back to list
             return batch
 
-        tokenized_dataset = tokenized_dataset.map(create_labels, batched=True, num_proc=num_proc)
-        
+        tokenized_dataset = tokenized_dataset.map(
+            create_labels,
+            batched=True,
+            num_proc=num_proc,
+            desc="Creating labels"
+        )
+
         tokenized_dataset.save_to_disk(save_path)
 
     print(tokenized_dataset)
