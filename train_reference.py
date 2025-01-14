@@ -1,6 +1,6 @@
 import torch
 from transformers import TrainingArguments, Trainer
-from data_loader import InstructionDataset, load_instruction_dataset
+from data_loader import load_instruction_dataset, preprocess_instruction_dataset
 from model import load_hf_model_and_tokenizer
 
 MODEL_NAME = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
@@ -11,8 +11,10 @@ def train_reference():
     model, tokenizer = load_hf_model_and_tokenizer(MODEL_NAME)
 
     train_val_split = combined_dataset.train_test_split(test_size=0.1)
-    train_dataset = InstructionDataset(train_val_split["train"], tokenizer)
-    eval_dataset = InstructionDataset(train_val_split["test"], tokenizer)
+    train_dataset = preprocess_instruction_dataset(train_val_split["train"], tokenizer)
+    eval_dataset = preprocess_instruction_dataset(train_val_split["test"], tokenizer)
+    print(train_dataset)
+    print(eval_dataset)
 
     training_args = TrainingArguments(
         output_dir="./outputs/reference_model",

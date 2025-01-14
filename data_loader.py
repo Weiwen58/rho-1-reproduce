@@ -1,58 +1,8 @@
 import os
 import torch
-from torch.utils.data import Dataset
 from datasets import load_dataset, load_from_disk, concatenate_datasets
 
 IGNORE_INDEX = -100
-
-
-class InstructionDataset(Dataset):
-    def __init__(self, data, tokenizer, max_length=2048):
-        self.data = data
-        self.tokenizer = tokenizer
-        self.max_length = max_length
-
-    def __len__(self):
-        return len(self.data)
-
-    def __getitem__(self, idx):
-        item = self.data[idx]
-        # Format using standard tokens:
-        # <s>Instruction: {instruction} Response: {response}</s>
-        text = f"{self.tokenizer.bos_token}Instruction: {item['instruction']} Response: {item['response']}{self.tokenizer.eos_token}"
-
-        # Tokenize and prepare for training
-        encodings = self.tokenizer(
-            text,
-            truncation=True,
-            max_length=self.max_length,
-            padding="max_length",
-            return_tensors="pt"
-        )
-
-        # Create the labels (same as input_ids for causal LM training)
-        labels = encodings.input_ids.clone()
-
-        # mask out the tokens before the response
-        response_prefix = "Response:"
-        response_prefix_ids = self.tokenizer.encode(response_prefix, add_special_tokens=False)
-
-        # Find the position after "Response:" to start the loss calculation
-        for i in range(labels.size(1) - len(response_prefix_ids)):
-            if labels[0][i:i+len(response_prefix_ids)].tolist() == response_prefix_ids:
-                response_pos = i + len(response_prefix_ids)
-                labels[:, :response_pos] = IGNORE_INDEX
-                break
-
-        # Mask padding tokens in labels
-        padding_mask = encodings.attention_mask == 0
-        labels[padding_mask] = IGNORE_INDEX
-
-        return {
-            "input_ids": encodings.input_ids[0],
-            "attention_mask": encodings.attention_mask[0],
-            "labels": labels[0]
-        }
 
 
 def load_instruction_dataset():
@@ -63,6 +13,56 @@ def load_instruction_dataset():
     combined_dataset = concatenate_datasets([MI_dataset, MM_dataset])
     combined_dataset = combined_dataset.shuffle(seed=42)
     return combined_dataset
+
+def preprocess_instruction_dataset(dataset, tokenizer, max_length=2048, num_proc=4):
+    def preprocess_function(batch):
+        # Format using standard tokens:
+        # <s>Instruction: {instruction} Response: {response}</s>
+        texts = [
+            f"{tokenizer.bos_token}Instruction: {instr} Response: {resp}{tokenizer.eos_token}"
+            for instr, resp in zip(batch["instruction"], batch["response"])
+        ]
+
+        encodings = tokenizer(
+            texts,
+            truncation=True,
+            max_length=max_length,
+            padding="max_length",
+            return_tensors="pt"
+        )
+        
+        labels = encodings.input_ids.clone()
+
+        # mask out the tokens before the response
+        response_prefix = "Response:"
+        response_prefix_ids = tokenizer.encode(response_prefix, add_special_tokens=False)
+
+        # Find the position after "Response:" to start the loss calculation
+        for row in labels:
+            for i in range(len(row) - len(response_prefix_ids)):
+                if row[i:i+len(response_prefix_ids)].tolist() == response_prefix_ids:
+                    response_pos = i + len(response_prefix_ids)
+                    row[:response_pos] = IGNORE_INDEX
+                    break
+
+        # Mask padding tokens in labels
+        padding_mask = encodings.attention_mask == 0
+        labels[padding_mask] = IGNORE_INDEX
+        
+        return {
+            "input_ids": encodings.input_ids,
+            "attention_mask": encodings.attention_mask,
+            "labels": labels,
+        }
+
+    tokenized_dataset = dataset.map(
+        preprocess_function, 
+        batched=True, 
+        num_proc=num_proc,
+        remove_columns=dataset.column_names,
+        desc="Preprocessing instruction dataset"
+    )
+    return tokenized_dataset
 
 
 def load_or_tokenize_owm_dataset(
