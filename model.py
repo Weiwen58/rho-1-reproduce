@@ -1,21 +1,29 @@
+from transformers import AutoTokenizer, AutoModelForCausalLM
+from peft import prepare_model_for_kbit_training, LoraConfig, get_peft_model
 import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 
 MODEL_NAME = "TinyLlama/TinyLlama_v1.1"
 
 
-def load_hf_model_and_tokenizer(model_name_or_path=MODEL_NAME, device_map="auto"):
+def load_hf_model_and_tokenizer(model_name_or_path=MODEL_NAME, peft=False):
 
-    config = BitsAndBytesConfig(
-        load_in_8bit=True,
-        bnb_8bit_use_double_quant=False,
-        bnb_8bit_quant_type="dynamic",
-        bnb_8bit_compute_dtype=torch.float16
-    )
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     model = AutoModelForCausalLM.from_pretrained(
         model_name_or_path,
-        quantization_config=config,
-        device_map=device_map
+        load_in_8bit=True,
+        device_map="auto",
+        torch_dtype=torch.float16,
     )
+    if peft:
+        model = prepare_model_for_kbit_training(model)
+        lora_config = LoraConfig(
+            r=16,
+            lora_alpha=32,
+            target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
+            lora_dropout=0.05,
+            bias="none",
+            task_type="CAUSAL_LM"
+        )
+        model = get_peft_model(model, lora_config)
+
     return model, tokenizer

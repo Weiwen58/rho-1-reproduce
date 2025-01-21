@@ -1,9 +1,11 @@
+import os
+print("CUDA_VISIBLE_DEVICES:", os.getenv("CUDA_VISIBLE_DEVICES"))
+
 from model import load_hf_model_and_tokenizer
 from data_loader import load_instruction_dataset, preprocess_instruction_dataset
 from transformers import TrainingArguments, Trainer
 import torch
-import os
-print("CUDA_VISIBLE_DEVICES:", os.getenv("CUDA_VISIBLE_DEVICES"))
+import bitsandbytes as bnb
 
 
 def train_reference():
@@ -21,6 +23,13 @@ def train_reference():
     train_dataset = train_val_split["train"]
     eval_dataset = train_val_split["test"]
 
+    optimizer = bnb.optim.AdamW8bit(
+        model.parameters(),
+        lr=5e-5,
+        betas=(0.9, 0.999),
+        weight_decay=0.01,
+    )
+
     training_args = TrainingArguments(
         output_dir="./outputs/reference_model",
         num_train_epochs=3,
@@ -28,6 +37,7 @@ def train_reference():
         per_device_eval_batch_size=4,
         # gradient_accumulation_steps=2,
         learning_rate=5e-5,
+        optim="adamw_8bit",
         lr_scheduler_type="cosine",
         logging_dir="./logs",
         logging_steps=1000,
