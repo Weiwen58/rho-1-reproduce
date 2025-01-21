@@ -5,7 +5,7 @@ from model import load_hf_model_and_tokenizer
 from data_loader import load_or_tokenize_owm_dataset
 
 IGNORE_INDEX = -100
-MODEL_NAME = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+MODEL_NAME = "TinyLlama/TinyLlama_v1.1"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 
@@ -103,7 +103,7 @@ class SelectiveLanguageModeling:
     ):
         total_steps = len(train_loader) * num_epochs
         scheduler = get_linear_schedule_with_warmup(
-            optimizer, 
+            optimizer,
             num_warmup_steps=warmup_steps,
             num_training_steps=total_steps
         )
@@ -169,23 +169,23 @@ class SelectiveLanguageModeling:
 
 
 def main():
-    reference_model, tokenizer = load_hf_model_and_tokenizer(MODEL_NAME)
+    reference_model, tokenizer = load_hf_model_and_tokenizer("./outputs/reference_model/checkpoint-19000")
     training_model, _ = load_hf_model_and_tokenizer(MODEL_NAME)
     reference_model.to(DEVICE)
     training_model.to(DEVICE)
 
     tokenized_dataset = load_or_tokenize_owm_dataset(
         tokenizer,
-        load=True,
-        save_path="./outputs/tokenized_dataset",
+        load=False,
+        save_path="./outputs/train_dataset",
         num_rows=100)
 
     train_val_split = tokenized_dataset.train_test_split(test_size=0.1)
     train_val_split.set_format(type="torch", columns=["input_ids", "attention_mask", "labels"])
     train_dataset = train_val_split["train"]
     eval_dataset = train_val_split["test"]
-    train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True)
-    eval_loader = DataLoader(eval_dataset, batch_size=1)
+    train_loader = DataLoader(train_dataset, batch_size=2, shuffle=True)
+    eval_loader = DataLoader(eval_dataset, batch_size=2)
 
     # Initialize selective language modeling
     slm = SelectiveLanguageModeling(reference_model, training_model)
@@ -194,9 +194,9 @@ def main():
 
     # Train selective language model
     slm.train(
-        train_loader, 
-        optimizer, 
-        num_epochs=1, 
+        train_loader,
+        optimizer,
+        num_epochs=1,
         eval_loader=eval_loader,
         save_path="./outputs/checkpoints"
     )
