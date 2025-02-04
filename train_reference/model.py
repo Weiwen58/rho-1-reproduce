@@ -15,7 +15,7 @@ def load_hf_model_and_tokenizer(model_name_or_path=MODEL_NAME, peft=False):
         torch_dtype=torch.float16,
     )
     if peft:
-        model = prepare_model_for_kbit_training(model)
+        model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=False)
         lora_config = LoraConfig(
             r=16,
             lora_alpha=32,
