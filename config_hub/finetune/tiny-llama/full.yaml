@@ -9,42 +9,39 @@ out_dir: out/finetune/full-tiny-llama-1.1b
 precision: bf16-true
 
 # How many devices/GPUs to use. (type: Union[int, str], default: 1)
-devices: 1
+devices: 4
 
 # How many nodes to use. (type: int, default: 1)
 num_nodes: 1
 
 # Data-related arguments. If not provided, the default is ``litgpt.data.Alpaca``.
 data:
-  class_path: litgpt.data.Alpaca2k
+  class_path: litgpt.data.JSON
   init_args:
-    mask_prompt: false
-    val_split_fraction: 0.03847
-    prompt_style: alpaca
-    ignore_index: -100
-    seed: 42
-    num_workers: 4
+    json_path: data/math_instruction.json
+    mask_prompt: True
+    val_split_fraction: 0.05
 
 # Training-related arguments. See ``litgpt.args.TrainArgs`` for details
 train:
 
   # Number of optimizer steps between saving checkpoints (type: Optional[int], default: 1000)
-  save_interval: 800
+  save_interval: 1000
 
   # Number of iterations between logging calls (type: int, default: 1)
   log_interval: 1
 
   # Number of samples between optimizer steps across data-parallel ranks (type: int, default: 128)
-  global_batch_size: 32
+  global_batch_size: 64
 
   # Number of samples per data-parallel rank (type: int, default: 4)
   micro_batch_size: 4
 
   # Number of iterations with learning rate warmup active (type: int, default: 100)
-  lr_warmup_steps: 1000
+  lr_warmup_steps: 500
 
   # Number of epochs to train on (type: Optional[int], default: 5)
-  epochs: 1
+  epochs: 3
 
   # Total number of tokens to train on (type: Optional[int], default: null)
   max_tokens:
@@ -53,7 +50,7 @@ train:
   max_steps:
 
   # Limits the length of samples. Off by default (type: Optional[int], default: null)
-  max_seq_length: 512
+  max_seq_length: 2048
 
   # Whether to tie the embedding weights with the language modeling head weights. (type: Optional[bool], default: null)
   tie_embeddings:
@@ -83,7 +80,7 @@ eval:
   final_validation: true
 
 # The name of the logger to send metrics to. (type: Literal['wandb', 'tensorboard', 'csv'], default: csv)
-logger_name: csv
+logger_name: tensorboard
 
 # The random seed to use for reproducibility. (type: int, default: 1337)
 seed: 1337
@@ -96,10 +93,10 @@ optimizer:
   init_args:
     
     #   (type: float, default: 0.001)
-    lr: 0.0002
+    lr: 5.0e-05
     
     #   (type: float, default: 0.01)
-    weight_decay: 0.0
+    weight_decay: 0.01
     
     #   (type: tuple, default: (0.9,0.999))
     betas:
