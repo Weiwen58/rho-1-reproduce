@@ -221,7 +221,7 @@ def main(
     train_dataloader, val_dataloader = fabric.setup_dataloaders(train_dataloader, val_dataloader)
 
     # Reference model checkpoint
-    fabric.load_raw("checkpoints/TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T/lit_model.pth", reference_model)
+    fabric.load_raw("checkpoints/TinyLlama/TinyLlama-reference/lit_model.pth", reference_model)
     fabric.print("Reference model loaded")
     
     if initial_checkpoint_dir:
@@ -330,7 +330,7 @@ def fit(
 
         is_accumulating = state["iter_num"] % train.gradient_accumulation_iters(devices) != 0
         with fabric.no_backward_sync(model, enabled=is_accumulating):
-            loss = selective_training_step(model, ref_model, input_ids, targets)
+            loss = selective_training_step(model, ref_model, input_ids, targets, tokenizer_dir=tokenizer_dir)
             # logits = model(input_ids)
             # loss = chunked_cross_entropy(logits, targets)
             fabric.backward(loss / train.gradient_accumulation_iters(devices))
@@ -531,7 +531,8 @@ def selective_training_step(
     input_ids, 
     targets, 
     selection_ratio=0.6, 
-    ignore_index=-100
+    ignore_index=-100,
+    tokenizer_dir=None
 ):
     """
     Perform one selective training step
@@ -551,6 +552,12 @@ def selective_training_step(
     selection_mask[batch_indices, selected_indices] = True
     
     new_targets = targets.clone()
+    if tokenizer_dir is not None:
+        new_targets[~selection_mask] = 0
+        tokenizer_dir = extend_checkpoint_dir(tokenizer_dir)
+        tokenizer = Tokenizer(tokenizer_dir)
+        print(tokenizer.decode(targets))
+        print(tokenizer.decode(new_targets))
     new_targets[~selection_mask] = ignore_index
 
     logits = logits.reshape(-1, logits.size(-1))

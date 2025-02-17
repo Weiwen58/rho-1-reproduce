@@ -1,7 +1,7 @@
 
 # The name of the model to pretrain. Choose from names in ``litgpt.config``. Mutually exclusive with
 # ``model_config``. (type: Optional[str], default: null)
-model_name: tiny-llama-1.1b-chat
+model_name: tiny-llama-1.1b
 
 # A ``litgpt.Config`` object to define the model architecture. Mutually exclusive with
 # ``model_config``. (type: Optional[Config], default: null)
@@ -16,7 +16,7 @@ precision: bf16-mixed
 
 # Optional path to a checkpoint directory to initialize the model from.
 # Useful for continued pretraining. Mutually exclusive with ``resume``. (type: Optional[Path], default: null)
-initial_checkpoint_dir: checkpoints/TinyLlama/TinyLlama_v1.1
+initial_checkpoint_dir: checkpoints/TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T
 
 # Path to a checkpoint directory to resume from in case training was interrupted, or ``True`` to resume
 # from the latest checkpoint in ``out_dir``. An error will be raised if no checkpoint is found. Passing
@@ -107,11 +107,11 @@ optimizer:
 devices: auto
 
 # How many nodes to use. (type: int, default: 1)
-num_nodes: 4
+num_nodes: 1
 
 # Optional path to the tokenizer dir that was used for preprocessing the dataset. Only some data
 # module require this. (type: Optional[Path], default: null)
-tokenizer_dir: checkpoints/TinyLlama/TinyLlama_v1.1
+tokenizer_dir: checkpoints/TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T
 
 # The name of the logger to send metrics to. (type: Literal['wandb', 'tensorboard', 'csv'], default: tensorboard)
 logger_name: tensorboard
